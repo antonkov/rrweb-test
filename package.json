@@ -9,11 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
     "rrweb": "^2.0.0-alpha.4",
     "rrweb-player": "^1.0.0-alpha.4",
     "solid-js": "^1.8.15"
   },
   "devDependencies": {
+    "@types/html2canvas": "^0.5.35",
     "typescript": "^5.2.2",
     "vite": "^5.1.4",
     "vite-plugin-solid": "^2.10.1"
