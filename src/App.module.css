@@ -71,4 +71,21 @@
   border: 1px solid #ddd;
   border-radius: 8px;
   background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.playerContainer h2 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+/* Ensure the player is centered and responsive */
+#rrweb-player {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  border-radius: 4px;
+  overflow: hidden;
 } 
