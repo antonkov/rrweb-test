@@ -13,30 +13,29 @@ const App: Component = () => {
   let player: rrwebPlayer | null = null;
 
   const takeScreenshot = async () => {
-    const iframe = document.querySelector('#rrweb-player iframe');
+    const iframe = document.querySelector('#rrweb-player iframe') as HTMLIFrameElement;
     if (!iframe?.contentDocument?.body) {
       console.error('Iframe or its content not accessible');
       return;
     }
+    console.log('Taking screenshot of iframe: ', iframe);
 
     try {
       // Get computed dimensions
       const rect = iframe.getBoundingClientRect();
       const contentRect = iframe.contentDocument.body.getBoundingClientRect();
 
-      
       const canvas = await html2canvas(iframe.contentDocument.body, {
         width: contentRect.width,
         height: contentRect.height,
-        backgroundColor: '#ffffff',
+        background: undefined,
         // Special options for iframe capture
-        foreignObjectRendering: true,
         useCORS: true,
         allowTaint: true,
       });
-      
+
       const screenshot = canvas.toDataURL('image/png');
-      
+
       // Create a temporary link to download the screenshot
       const link = document.createElement('a');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -76,9 +75,34 @@ const App: Component = () => {
     }
   };
 
+  // Add message handler for iframe events
+  const setupMessageHandler = () => {
+    const handler = (e: MessageEvent) => {
+      if (e.data.type === 'RRWEB_EVENT') {
+        const event = e.data.event;
+        events.push(event);
+        console.log(formatEvent(event));
+        
+        if (events.length >= 2 && !player) {
+          player = initializePlayer(events);
+          if (!player) {
+            console.error('Failed to initialize player');
+            return;
+          }
+        }
+
+        if (player) {
+          player.addEvent(event);
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  };
+
   const startRecording = () => {
     console.log('Starting recording...');
-    const iframe = document.querySelector('iframe');
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement;
     if (!iframe?.contentWindow) {
       console.error('No iframe found or contentWindow not accessible');
       return;
@@ -90,44 +114,31 @@ const App: Component = () => {
     // Initialize player before starting recording
     if (player) {
       console.log('Destroying existing player');
-      // player.();
       player = null;
     }
-    const recordingFn = rrweb.record({
-      emit: (event) => {
-        events.push(event);
-        console.log(formatEvent(event));
-        // Append the new event to the player
-        if (events.length >= 2 && !player) {
-          player = initializePlayer(events);
-          if (!player) {
-            console.error('Failed to initialize player');
-            return;
-          }
-        }
 
-        if (player) {
-          player.addEvent(event);
-          setTimeout(() => {
-            player!.goto(event.timestamp);
-            // takeScreenshot();
-          }, 100);
-        }
-      },
-    });
+    // Start recording in iframe
+    iframe.contentWindow.postMessage({ type: 'START_RECORDING' }, '*');
+    
+    // Setup message handler for events
+    const removeHandler = setupMessageHandler();
+    stopFn = () => {
+      iframe.contentWindow?.postMessage({ type: 'STOP_RECORDING' }, '*');
+      removeHandler();
+    };
 
-    if (recordingFn) {
-      console.log('Recording started successfully');
-      stopFn = recordingFn;
-      setIsRecording(true);
-    } else {
-      console.error('Failed to start recording');
-    }
+    console.log('Recording started successfully');
+    setIsRecording(true);
   };
 
   const stopRecording = () => {
     console.log('Stopping recording...');
+    const iframe = document.querySelector('iframe');
+    
     if (stopFn) {
+      // Stop recording in iframe
+      iframe?.contentWindow?.postMessage({ type: 'STOP_RECORDING' }, '*');
+      // Remove message handler
       stopFn();
       stopFn = null;
       setIsRecording(false);
@@ -175,9 +186,11 @@ const App: Component = () => {
           />
         </div>
 
-        <div class={styles.playerContainer}>
-          <h2>Replay</h2>
-          <div id="rrweb-player"></div>
+        <div class="rrweb-ignore">
+          <div class={styles.playerContainer}>
+            <h2>Replay</h2>
+            <div id="rrweb-player"></div>
+          </div>
         </div>
       </main>
     </div>
