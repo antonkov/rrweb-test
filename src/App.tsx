@@ -3,18 +3,38 @@ import * as rrweb from 'rrweb';
 import rrwebPlayer from 'rrweb-player';
 import 'rrweb-player/dist/style.css';
 import styles from './App.module.css';
-
-interface RRWebEvent {
-  type: number;
-  data: any;
-  timestamp: number;
-}
+import { RRWebEvent, formatEvent } from './eventFormatting';
 
 const App: Component = () => {
   const [isRecording, setIsRecording] = createSignal(false);
   let events: RRWebEvent[] = [];
   let stopFn: (() => void) | null = null;
-  let player: any = null;
+  let player: rrwebPlayer | null = null;
+
+  const initializePlayer = (events: RRWebEvent[]) => {
+    const playerDom = document.querySelector('#rrweb-player') as HTMLElement;
+    if (!playerDom) {
+      console.error('Player DOM element not found');
+      return null;
+    }
+
+    try {
+      console.log('Creating new player instance');
+      return new rrwebPlayer({
+        target: playerDom,
+        props: {
+          events,
+          width: 800,
+          height: 450,
+          autoPlay: true,
+          showController: true,
+        },
+      });
+    } catch (error) {
+      console.error('Error creating player:', error);
+      return null;
+    }
+  };
 
   const startRecording = () => {
     console.log('Starting recording...');
@@ -27,10 +47,31 @@ const App: Component = () => {
     events = []; // Reset events
     console.log('Events array reset');
 
+    // Initialize player before starting recording
+    if (player) {
+      console.log('Destroying existing player');
+      // player.();
+      player = null;
+    }
     const recordingFn = rrweb.record({
       emit: (event) => {
         events.push(event);
-        console.log('Event recorded:', event.type, 'Total events:', events.length);
+        console.log(formatEvent(event));
+        // Append the new event to the player
+        if (events.length >= 2 && !player) {
+          player = initializePlayer(events);
+          if (!player) {
+            console.error('Failed to initialize player');
+            return;
+          }
+        }
+
+        if (player) {
+          player.addEvent(event);
+          setTimeout(() => {
+            player!.goto(event.timestamp);
+          }, 100);
+        }
       },
     });
 
@@ -50,42 +91,6 @@ const App: Component = () => {
       stopFn = null;
       setIsRecording(false);
       console.log('Recording stopped, total events:', events.length);
-
-      // Initialize player after a short delay to ensure DOM is ready
-      setTimeout(() => {
-        console.log('Initializing player...');
-        const playerDom = document.querySelector('#rrweb-player') as HTMLElement;
-        console.log('Player DOM element:', playerDom);
-        console.log('Events available:', events.length);
-
-        if (playerDom && events.length > 0) {
-          if (player) {
-            console.log('Destroying existing player');
-            player.destroy();
-          }
-
-          try {
-            console.log('Creating new player instance');
-            player = new rrwebPlayer({
-              target: playerDom,
-              props: {
-                events,
-                width: 800,
-                height: 450,
-                autoPlay: true,
-                showController: true,
-              },
-            });
-            console.log('Player created successfully');
-          } catch (error) {
-            console.error('Error creating player:', error);
-          }
-        } else {
-          console.error('Player DOM not found or no events to replay');
-          console.log('playerDom:', playerDom);
-          console.log('events:', events);
-        }
-      }, 100);
     } else {
       console.warn('Stop function not found');
     }
@@ -97,7 +102,7 @@ const App: Component = () => {
       stopFn();
     }
     if (player) {
-      player.destroy();
+      // player.destroy();
     }
   });
 
