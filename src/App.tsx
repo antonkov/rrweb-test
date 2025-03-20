@@ -5,6 +5,7 @@ import 'rrweb-player/dist/style.css';
 import styles from './App.module.css';
 import { RRWebEvent, formatEvent } from './eventFormatting';
 import html2canvas from 'html2canvas';
+import { getMirrorsPlugin } from './plugins/getMirrorsPlugin';
 
 const App: Component = () => {
   const [isRecording, setIsRecording] = createSignal(false);
@@ -67,6 +68,7 @@ const App: Component = () => {
           height: 450,
           autoPlay: true,
           showController: true,
+          plugins: [getMirrorsPlugin]
         },
       });
     } catch (error) {
@@ -81,7 +83,7 @@ const App: Component = () => {
       if (e.data.type === 'RRWEB_EVENT') {
         const event = e.data.event;
         events.push(event);
-        console.log(formatEvent(event));
+        console.log(event, formatEvent(event));
         
         if (events.length >= 2 && !player) {
           player = initializePlayer(events);
